@@ -1,0 +1,6 @@
+{
+  "name": "Panel de Administración del Chatbot",
+  "description": "Un panel para ver y actualizar la configuración del chatbot. Este módulo permite gestionar la configuración global que el chatbot utiliza para su funcionamiento.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
