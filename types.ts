@@ -37,3 +37,8 @@ export interface Product {
 export interface TestPromptResponse {
     responseText: string;
 }
+
+export interface SessionListItem {
+  id: string;
+  platform: 'whatsapp' | 'messenger';
+}

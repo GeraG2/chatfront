@@ -1,13 +1,16 @@
 import React from 'react';
-import { List, ListItemButton, ListItemText, Paper, Typography, Box } from '@mui/material/';
+import { List, ListItemButton, ListItemText, Paper, Typography, Box, ListItemIcon } from '@mui/material/';
+import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import FacebookIcon from '@mui/icons-material/Facebook';
+import { SessionListItem } from '../../types';
 
 interface ChatListProps {
-  sessions: string[];
-  selectedSessionId: string | null;
-  onSelectSession: (sessionId: string) => void;
+  sessions: SessionListItem[];
+  selectedSession: SessionListItem | null;
+  onSelectSession: (session: SessionListItem) => void;
 }
 
-const ChatList: React.FC<ChatListProps> = ({ sessions, selectedSessionId, onSelectSession }) => {
+const ChatList: React.FC<ChatListProps> = ({ sessions, selectedSession, onSelectSession }) => {
   return (
     <Paper sx={{ flexGrow: 1, overflowY: 'auto' }}>
       {sessions.length === 0 ? (
@@ -18,13 +21,17 @@ const ChatList: React.FC<ChatListProps> = ({ sessions, selectedSessionId, onSele
           </Box>
       ) : (
         <List component="nav" aria-label="lista de chats" dense>
-          {sessions.map((sessionId) => (
+          {sessions.map((session) => (
             <ListItemButton
-              key={sessionId}
-              selected={selectedSessionId === sessionId}
-              onClick={() => onSelectSession(sessionId)}
+              key={`${session.platform}-${session.id}`}
+              selected={selectedSession?.id === session.id && selectedSession?.platform === session.platform}
+              onClick={() => onSelectSession(session)}
             >
-              <ListItemText primary={sessionId} />
+              <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
+                {session.platform === 'whatsapp' && <WhatsAppIcon fontSize="small" sx={{ color: '#25D366' }} />}
+                {session.platform === 'messenger' && <FacebookIcon fontSize="small" sx={{ color: '#0084FF' }}/>}
+              </ListItemIcon>
+              <ListItemText primary={session.id} />
             </ListItemButton>
           ))}
         </List>

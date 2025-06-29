@@ -33,23 +33,37 @@ const SandboxChat: React.FC<SandboxChatProps> = ({ systemInstruction }) => {
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/test-prompt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', // <-- La línea clave que faltaba
+        headers: {
+      'Content-Type': 'application/json',
+       }   ,
         body: JSON.stringify({
-          systemInstruction: systemInstruction,
-          history: newHistory,
+         systemInstruction: systemInstruction,
+          history: newHistory, // newHistory es el que ya tienes en tu función
         }),
-      });
+    });
       const data: TestPromptResponse = await response.json();
+
       if (!response.ok) {
-        throw new Error(data.responseText || 'Error en la respuesta del servidor.');
+      throw new Error(data.responseText || 'Error en la respuesta del servidor.');
       }
-      const modelMessage: HistoryItem = { role: 'model', parts: [{ text: data.responseText }] };
-      setHistory(prev => [...prev, modelMessage]);
+
+      // --- VALIDACIÓN CRUCIAL AÑADIDA ---
+      // Nos aseguramos de que la respuesta contenga texto válido antes de añadirla al historial
+      if (data && typeof data.responseText === 'string' && data.responseText.trim() !== '') {
+        const modelMessage: HistoryItem = { role: 'model', parts: [{ text: data.responseText }] };
+        setHistory(prev => [...prev, modelMessage]);
+      } else {
+        // Si no hay texto, lanzamos un error para que el `catch` lo maneje
+        // y muestre un mensaje al usuario, en lugar de corromper el historial.
+        throw new Error('La respuesta del servidor no contenía texto válido.');
+        }
+      // --- FIN DE LA VALIDACIÓN ---
+
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Error desconocido al contactar la IA.';
       setError(errorMessage);
-       setHistory(prev => prev.slice(0, -1)); // Remove user message if API fails
+      setHistory(prev => prev.slice(0, -1)); // Quita el mensaje del usuario si la API falla
     } finally {
       setIsLoading(false);
     }

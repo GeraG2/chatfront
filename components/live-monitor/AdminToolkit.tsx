@@ -4,12 +4,13 @@ import { API_BASE_URL_MONITOR } from '../../constants';
 
 interface AdminToolkitProps {
   sessionId: string | null;
+  platform?: 'whatsapp' | 'messenger';
   initialInstruction?: string;
   isLoading: boolean;
   onInstructionUpdate: () => void;
 }
 
-const AdminToolkit: React.FC<AdminToolkitProps> = ({ sessionId, initialInstruction, isLoading, onInstructionUpdate }) => {
+const AdminToolkit: React.FC<AdminToolkitProps> = ({ sessionId, platform, initialInstruction, isLoading, onInstructionUpdate }) => {
   const [instruction, setInstruction] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [notification, setNotification] = useState<{ severity: 'success' | 'error'; message: string } | null>(null);
@@ -25,20 +26,20 @@ const AdminToolkit: React.FC<AdminToolkitProps> = ({ sessionId, initialInstructi
   useEffect(() => {
     // Clear form and notification when session changes
     setNotification(null);
-    if (!sessionId) {
+    if (!sessionId || !platform) {
         setInstruction('');
     }
-  }, [sessionId]);
+  }, [sessionId, platform]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sessionId) return;
+    if (!sessionId || !platform) return;
     
     setIsSaving(true);
     setNotification(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions/${sessionId}/instruction`, {
+      const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions/${platform}/${sessionId}/instruction`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -64,7 +65,7 @@ const AdminToolkit: React.FC<AdminToolkitProps> = ({ sessionId, initialInstructi
            return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
       }
 
-      if (!sessionId) {
+      if (!sessionId || !platform) {
           return (
               <Box sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Typography variant="body2" color="text.secondary" textAlign="center">

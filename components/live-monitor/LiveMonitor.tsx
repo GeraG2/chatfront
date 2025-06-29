@@ -4,11 +4,11 @@ import ChatList from './ChatList';
 import ChatTranscript from './ChatTranscript';
 import AdminToolkit from './AdminToolkit';
 import { API_BASE_URL_MONITOR } from '../../constants';
-import { SessionData } from '../../types';
+import { SessionData, SessionListItem } from '../../types';
 
 const LiveMonitor: React.FC = () => {
-  const [sessions, setSessions] = useState<string[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [selectedSession, setSelectedSession] = useState<SessionListItem | null>(null);
   const [sessionData, setSessionData] = useState<SessionData | null>(null);
   const [isLoadingList, setIsLoadingList] = useState<boolean>(true);
   const [isLoadingSession, setIsLoadingSession] = useState<boolean>(false);
@@ -23,11 +23,11 @@ const LiveMonitor: React.FC = () => {
       if (!response.ok) {
         throw new Error(`Error al obtener sesiones: ${response.statusText}`);
       }
-      const data: string[] = await response.json();
+      const data: SessionListItem[] = await response.json();
       setSessions(data);
       // If a selected session is no longer active, deselect it
-      if (selectedSessionId && !data.includes(selectedSessionId)) {
-        setSelectedSessionId(null);
+      if (selectedSession && !data.find(s => s.id === selectedSession.id && s.platform === selectedSession.platform)) {
+        setSelectedSession(null);
         setSessionData(null);
       }
       setError(null);
@@ -38,7 +38,7 @@ const LiveMonitor: React.FC = () => {
     } finally {
       setIsLoadingList(false);
     }
-  }, [isLoadingList, selectedSessionId]);
+  }, [isLoadingList, selectedSession]);
 
   useEffect(() => {
     fetchSessions();
@@ -47,13 +47,13 @@ const LiveMonitor: React.FC = () => {
     return () => clearInterval(intervalId); // Cleanup on unmount
   }, [fetchSessions]);
 
-  const fetchSessionData = useCallback(async (sessionId: string) => {
-    if (!sessionId) return;
+  const fetchSessionData = useCallback(async (session: SessionListItem) => {
+    if (!session) return;
     setIsLoadingSession(true);
     setSessionData(null);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions/${sessionId}`);
+      const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions/${session.platform}/${session.id}`);
       if (!response.ok) {
         throw new Error(`Error al obtener los datos de la sesión: ${response.statusText}`);
       }
@@ -69,16 +69,16 @@ const LiveMonitor: React.FC = () => {
     }
   }, []);
 
-  const handleSelectSession = useCallback((sessionId: string) => {
-    setSelectedSessionId(sessionId);
-    fetchSessionData(sessionId);
+  const handleSelectSession = useCallback((session: SessionListItem) => {
+    setSelectedSession(session);
+    fetchSessionData(session);
   }, [fetchSessionData]);
   
   const handleInstructionUpdate = useCallback(() => {
-      if (selectedSessionId) {
-          fetchSessionData(selectedSessionId);
+      if (selectedSession) {
+          fetchSessionData(selectedSession);
       }
-  }, [selectedSessionId, fetchSessionData]);
+  }, [selectedSession, fetchSessionData]);
 
   return (
     <Box sx={{ flexGrow: 1 }}>
@@ -95,7 +95,7 @@ const LiveMonitor: React.FC = () => {
           ) : (
             <ChatList 
               sessions={sessions} 
-              selectedSessionId={selectedSessionId}
+              selectedSession={selectedSession}
               onSelectSession={handleSelectSession} 
             />
           )}
@@ -108,7 +108,8 @@ const LiveMonitor: React.FC = () => {
         </Grid>
         <Grid item xs={12} md={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <AdminToolkit
-                sessionId={selectedSessionId}
+                sessionId={selectedSession?.id || null}
+                platform={selectedSession?.platform}
                 initialInstruction={sessionData?.systemInstruction}
                 isLoading={isLoadingSession}
                 onInstructionUpdate={handleInstructionUpdate}
