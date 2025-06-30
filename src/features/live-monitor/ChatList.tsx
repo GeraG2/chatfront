@@ -2,7 +2,7 @@ import React from 'react';
 import { List, ListItemButton, ListItemText, Paper, Typography, Box, ListItemIcon } from '@mui/material/';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import FacebookIcon from '@mui/icons-material/Facebook'; // Assuming this is for Messenger
-import { SessionListItem } from '../../types';
+import { SessionListItem } from '../../types/types';
 
 interface ChatListProps {
   sessions: SessionListItem[];

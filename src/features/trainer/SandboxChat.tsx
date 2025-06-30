@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Box, Paper, Typography, TextField, IconButton, CircularProgress, Alert } from '@mui/material/';
 import SendIcon from '@mui/icons-material/Send';
 import RefreshIcon from '@mui/icons-material/Refresh';
-import { HistoryItem, TestPromptResponse } from '../../types';
+import { HistoryItem, TestPromptResponse } from '../../types/types';
 import { API_BASE_URL } from '../../constants';
 
 interface SandboxChatProps {
