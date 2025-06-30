@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Paper, Typography, TextField, Button, CircularProgress, Alert, Collapse } from '@mui/material/';
 import { API_BASE_URL_MONITOR } from '../../constants';
-import { SessionListItem } from '../../types'; // platform is part of SessionListItem
+import { SessionListItem } from '../../types/types'; // platform is part of SessionListItem
 
 interface AdminToolkitProps {
   sessionId: string | null;

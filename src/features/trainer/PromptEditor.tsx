@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Box, Paper, Typography, TextField, Button, CircularProgress, Alert, Stack } from '@mui/material/';
 import { API_BASE_URL } from '../../constants';
-import { ConfigData, NotificationState } from '../../types';
-import Notification from '../Notification';
+import { ConfigData, NotificationState } from '../../types/types';
+import Notification from '../../components/Notification';
 
 interface PromptEditorProps {
   instruction: string;

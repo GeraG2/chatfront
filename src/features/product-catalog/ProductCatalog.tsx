@@ -23,9 +23,9 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Product, NotificationState } from '../types';
-import { API_BASE_URL } from '../constants';
-import Notification from './Notification';
+import { Product, NotificationState } from '../../types/types';
+import { API_BASE_URL } from '../../constants';
+import Notification from '../../components/Notification';
 
 const emptyProduct: Product = { id: '', name: '', description: '', price: '', stock: '' };
 

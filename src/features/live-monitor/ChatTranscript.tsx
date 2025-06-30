@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { Box, Paper, Typography, CircularProgress } from '@mui/material/';
-import { HistoryItem } from '../../types';
+import { HistoryItem } from '../../types/types';
 
 interface ChatTranscriptProps {
   history?: HistoryItem[];

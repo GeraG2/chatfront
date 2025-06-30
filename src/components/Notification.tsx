@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { NotificationState } from '../types';
+import { NotificationState } from '../types/types';
 
 interface NotificationProps extends NotificationState {
   onClose: () => void;

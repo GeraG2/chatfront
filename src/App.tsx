@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import ConfigForm from './components/ConfigForm';
-import LiveMonitor from './components/live-monitor/LiveMonitor';
-import ProductCatalog from './components/ProductCatalog';
-import BotTrainer from './components/trainer/BotTrainer';
+import ConfigForm from './features/global-config/ConfigForm';
+import LiveMonitor from './features/live-monitor/LiveMonitor';
+import ProductCatalog from './features/product-catalog/ProductCatalog';
+import BotTrainer from './features/trainer/BotTrainer';
 import { Box, Tab, Tabs, Typography, createTheme, ThemeProvider, CssBaseline } from '@mui/material/';
 
 const darkTheme = createTheme({

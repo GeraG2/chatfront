@@ -4,7 +4,7 @@ import ChatList from './ChatList';
 import ChatTranscript from './ChatTranscript';
 import AdminToolkit from './AdminToolkit';
 import { API_BASE_URL_MONITOR } from '../../constants';
-import { SessionData, SessionListItem } from '../../types';
+import { SessionData, SessionListItem } from '../../types/types';
 
 const LiveMonitor: React.FC = () => {
   const [sessions, setSessions] = useState<SessionListItem[]>([]);

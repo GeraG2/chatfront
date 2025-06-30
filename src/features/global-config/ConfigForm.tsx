@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ConfigData, NotificationState } from '../types';
-import { API_BASE_URL } from '../constants';
-import Notification from './Notification';
+import { ConfigData, NotificationState } from '../../types/types';
+import { API_BASE_URL } from '../../constants';
+import Notification from '../../components/Notification';
 
 const initialConfigState: ConfigData = {
   GEMINI_MODEL: '',
