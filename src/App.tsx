@@ -3,6 +3,7 @@ import ConfigForm from './features/global-config/ConfigForm';
 import LiveMonitor from './features/live-monitor/LiveMonitor';
 import ProductCatalog from './features/product-catalog/ProductCatalog';
 import BotTrainer from './features/trainer/BotTrainer';
+import ClientManager from './features/client-manager/ClientManager';
 import { Box, Tab, Tabs, Typography, createTheme, ThemeProvider, CssBaseline } from '@mui/material/';
 
 const darkTheme = createTheme({
@@ -92,6 +93,7 @@ const App: React.FC = () => {
                         <Tab label="Monitor de Chats" {...a11yProps(1)} />
                         <Tab label="Catálogo de Productos" {...a11yProps(2)} />
                         <Tab label="Entrenador de IA" {...a11yProps(3)} />
+                        <Tab label="Gestor de Clientes" {...a11yProps(4)} />
                     </Tabs>
                 </Box>
                 <TabPanel value={value} index={0}>
@@ -109,6 +111,9 @@ const App: React.FC = () => {
                 </TabPanel>
                  <TabPanel value={value} index={3}>
                     <BotTrainer />
+                </TabPanel>
+                <TabPanel value={value} index={4}>
+                    <ClientManager />
                 </TabPanel>
             </main>
              <footer className="mt-12 py-6 text-center">
