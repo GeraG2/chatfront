@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Paper, Typography, TextField, Button, CircularProgress, Alert, Collapse } from '@mui/material/';
 import { API_BASE_URL_MONITOR } from '../../constants';
+import { SessionListItem } from '../../types'; // platform is part of SessionListItem
 
 interface AdminToolkitProps {
   sessionId: string | null;
-  platform?: 'whatsapp' | 'messenger';
+  platform?: SessionListItem['platform']; // Use the type from SessionListItem
   initialInstruction?: string;
   isLoading: boolean;
   onInstructionUpdate: () => void;
@@ -19,26 +20,30 @@ const AdminToolkit: React.FC<AdminToolkitProps> = ({ sessionId, platform, initia
     if (initialInstruction !== undefined) {
       setInstruction(initialInstruction);
     } else {
-        setInstruction('');
+        setInstruction(''); // Clear instruction if initial is undefined (e.g. new session)
     }
   }, [initialInstruction]);
   
   useEffect(() => {
-    // Clear form and notification when session changes
+    // Clear form and notification when session (id or platform) changes, or if either is missing
     setNotification(null);
-    if (!sessionId || !platform) {
-        setInstruction('');
+    if (!sessionId || !platform) { // Check both sessionId and platform
+        setInstruction(''); // Clear instruction text field
     }
   }, [sessionId, platform]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sessionId || !platform) return;
+    if (!sessionId || !platform) { // Ensure both platform and sessionId are present
+        setNotification({ severity: 'error', message: 'No session selected or platform missing.'});
+        return;
+    }
     
     setIsSaving(true);
     setNotification(null);
 
     try {
+      // Dynamically construct URL using platform and sessionId
       const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions/${platform}/${sessionId}/instruction`, {
         method: 'POST',
         headers: {
@@ -65,6 +70,7 @@ const AdminToolkit: React.FC<AdminToolkitProps> = ({ sessionId, platform, initia
            return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
       }
 
+      // Check for both sessionId and platform to enable admin tools
       if (!sessionId || !platform) {
           return (
               <Box sx={{ p: 2, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -87,12 +93,13 @@ const AdminToolkit: React.FC<AdminToolkitProps> = ({ sessionId, platform, initia
               value={instruction}
               onChange={(e) => setInstruction(e.target.value)}
               sx={{ flexGrow: 1 }}
+              disabled={!platform || !sessionId} // Also disable if platform/id missing
             />
             <Button
               type="submit"
               variant="contained"
               color="primary"
-              disabled={isSaving}
+              disabled={isSaving || !platform || !sessionId} // Also disable if platform/id missing
               fullWidth
               sx={{ mt: 2 }}
             >

@@ -17,6 +17,7 @@ const LiveMonitor: React.FC = () => {
   const fetchSessions = useCallback(async () => {
     // Keep loading state true only on first load
     // Subsequent polls will be silent
+    // setIsLoadingList(prev => !sessions.length); // Alternative: only show main loader if list is empty
     if (isLoadingList) setIsLoadingList(true);
     try {
       const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions`);
@@ -38,7 +39,7 @@ const LiveMonitor: React.FC = () => {
     } finally {
       setIsLoadingList(false);
     }
-  }, [isLoadingList, selectedSession]);
+  }, [isLoadingList, selectedSession]); // Added selectedSession to dependency array as per its usage
 
   useEffect(() => {
     fetchSessions();
@@ -47,10 +48,13 @@ const LiveMonitor: React.FC = () => {
     return () => clearInterval(intervalId); // Cleanup on unmount
   }, [fetchSessions]);
 
-  const fetchSessionData = useCallback(async (session: SessionListItem) => {
-    if (!session) return;
+  const fetchSessionData = useCallback(async (session: SessionListItem | null) => { // Allow session to be null
+    if (!session) {
+        setSessionData(null); // Clear session data if no session is selected
+        return;
+    }
     setIsLoadingSession(true);
-    setSessionData(null);
+    setSessionData(null); // Clear previous data
     setError(null);
     try {
       const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions/${session.platform}/${session.id}`);
@@ -63,13 +67,13 @@ const LiveMonitor: React.FC = () => {
       const errorMessage = e instanceof Error ? e.message : 'Error desconocido';
       console.error(errorMessage);
       setError(errorMessage);
-      setSessionData(null);
+      setSessionData(null); // Clear data on error
     } finally {
       setIsLoadingSession(false);
     }
   }, []);
 
-  const handleSelectSession = useCallback((session: SessionListItem) => {
+  const handleSelectSession = useCallback((session: SessionListItem | null) => { // Allow session to be null for deselection
     setSelectedSession(session);
     fetchSessionData(session);
   }, [fetchSessionData]);
@@ -95,7 +99,7 @@ const LiveMonitor: React.FC = () => {
           ) : (
             <ChatList 
               sessions={sessions} 
-              selectedSession={selectedSession}
+              selectedSession={selectedSession} // Pass the full selectedSession object
               onSelectSession={handleSelectSession} 
             />
           )}
@@ -109,7 +113,7 @@ const LiveMonitor: React.FC = () => {
         <Grid item xs={12} md={3} sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <AdminToolkit
                 sessionId={selectedSession?.id || null}
-                platform={selectedSession?.platform}
+                platform={selectedSession?.platform} // Pass platform
                 initialInstruction={sessionData?.systemInstruction}
                 isLoading={isLoadingSession}
                 onInstructionUpdate={handleInstructionUpdate}

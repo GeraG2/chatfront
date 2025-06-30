@@ -1,13 +1,13 @@
 import React from 'react';
 import { List, ListItemButton, ListItemText, Paper, Typography, Box, ListItemIcon } from '@mui/material/';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
-import FacebookIcon from '@mui/icons-material/Facebook';
+import FacebookIcon from '@mui/icons-material/Facebook'; // Assuming this is for Messenger
 import { SessionListItem } from '../../types';
 
 interface ChatListProps {
   sessions: SessionListItem[];
   selectedSession: SessionListItem | null;
-  onSelectSession: (session: SessionListItem) => void;
+  onSelectSession: (session: SessionListItem) => void; // Parameter is the full session object
 }
 
 const ChatList: React.FC<ChatListProps> = ({ sessions, selectedSession, onSelectSession }) => {
@@ -23,15 +23,19 @@ const ChatList: React.FC<ChatListProps> = ({ sessions, selectedSession, onSelect
         <List component="nav" aria-label="lista de chats" dense>
           {sessions.map((session) => (
             <ListItemButton
-              key={`${session.platform}-${session.id}`}
-              selected={selectedSession?.id === session.id && selectedSession?.platform === session.platform}
-              onClick={() => onSelectSession(session)}
+              key={`${session.platform}-${session.id}`} // Unique key using platform and id
+              selected={selectedSession?.platform === session.platform && selectedSession?.id === session.id}
+              onClick={() => onSelectSession(session)} // Pass the full session object
             >
               <ListItemIcon sx={{ minWidth: 'auto', mr: 1 }}>
-                {session.platform === 'whatsapp' && <WhatsAppIcon fontSize="small" sx={{ color: '#25D366' }} />}
-                {session.platform === 'messenger' && <FacebookIcon fontSize="small" sx={{ color: '#0084FF' }}/>}
+                {session.platform === 'whatsapp' && (
+                  <WhatsAppIcon fontSize="small" sx={{ color: 'green' }} />
+                )}
+                {session.platform === 'messenger' && (
+                  <FacebookIcon fontSize="small" sx={{ color: 'blue' }} />
+                )}
               </ListItemIcon>
-              <ListItemText primary={session.id} />
+              <ListItemText primary={session.id} secondary={session.platform} />
             </ListItemButton>
           ))}
         </List>
