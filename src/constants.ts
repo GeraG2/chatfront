@@ -1,2 +1,2 @@
-export const API_BASE_URL = 'http://localhost:5001';
-export const API_BASE_URL_MONITOR = 'http://localhost:5001';
+export const API_BASE_URL = 'https://chatbot-back.fly.dev';
+export const API_BASE_URL_MONITOR = 'https://chatbot-back.fly.dev';
