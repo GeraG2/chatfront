@@ -36,7 +36,7 @@ const emptyClient: Partial<ClientProfile> = {
   clientId: '',
   platform: 'messenger',
   pageAccessToken: '',
-  geminiModel: 'gemini-2.0-flash',
+  geminiModel: 'gemini-1.5-flash',
   systemInstruction: '',
   maxHistoryTurns: 10,
   knowledgeBasePath: '',

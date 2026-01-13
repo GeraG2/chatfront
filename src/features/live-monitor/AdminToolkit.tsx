@@ -46,9 +46,7 @@ const AdminToolkit: React.FC<AdminToolkitProps> = ({ sessionId, platform, initia
       // Dynamically construct URL using platform and sessionId
       const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions/${platform}/${sessionId}/instruction`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ newInstruction: instruction }),
       });
       const data = await response.json();

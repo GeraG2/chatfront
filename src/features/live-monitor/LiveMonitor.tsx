@@ -3,7 +3,7 @@ import { Grid, Box, CircularProgress, Typography, Alert } from '@mui/material/';
 import ChatList from './ChatList';
 import ChatTranscript from './ChatTranscript';
 import AdminToolkit from './AdminToolkit';
-import { API_BASE_URL_MONITOR } from '../../constants';
+import { API_BASE_URL } from '../../constants';
 import { SessionData, SessionListItem } from '../../types/types';
 
 const LiveMonitor: React.FC = () => {
@@ -20,7 +20,7 @@ const LiveMonitor: React.FC = () => {
     // setIsLoadingList(prev => !sessions.length); // Alternative: only show main loader if list is empty
     if (isLoadingList) setIsLoadingList(true);
     try {
-      const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions`);
+      const response = await fetch(`${API_BASE_URL}/api/sessions`);
       if (!response.ok) {
         throw new Error(`Error al obtener sesiones: ${response.statusText}`);
       }
@@ -57,7 +57,7 @@ const LiveMonitor: React.FC = () => {
     setSessionData(null); // Clear previous data
     setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL_MONITOR}/api/sessions/${session.platform}/${session.id}`);
+      const response = await fetch(`${API_BASE_URL}/api/sessions/${session.platform}/${session.id}`);
       if (!response.ok) {
         throw new Error(`Error al obtener los datos de la sesión: ${response.statusText}`);
       }

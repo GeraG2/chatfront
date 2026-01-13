@@ -1,22 +1,40 @@
+// File: src/types.ts
+
+// --- INTERFACES GENERALES ---
+
 export interface ConfigData {
-  GEMINI_MODEL: string;
-  MAX_HISTORY_TURNS: number | string; // Use string for input flexibility, convert to number for API
-  DEFAULT_SYSTEM_INSTRUCTION: string;
+  systemInstruction: string;
+  geminiModel: string;
+  maxHistoryTurns: number;
 }
 
 export interface NotificationState {
+  open: boolean;
   message: string;
-  type: 'success' | 'error';
+  severity: 'success' | 'info' | 'warning' | 'error';
 }
 
-// Types for Live Monitor
 export interface HistoryPart {
   text: string;
 }
 
+export interface TestPromptResponse {
+  response: string; // O la estructura que estuvieras usando
+}
+
+// --- INTERFACES DE PRODUCTOS Y CHAT ---
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number | string;
+  stock: number | string;
+}
+
 export interface HistoryItem {
   role: 'user' | 'model';
-  parts: HistoryPart[];
+  parts: HistoryPart[]; // Usamos la interfaz restaurada
 }
 
 export interface SessionData {
@@ -24,21 +42,65 @@ export interface SessionData {
   systemInstruction: string;
 }
 
-// Type for Product Catalog
-export interface Product {
-  id: string; // The backend should handle ID generation for new products
-  name: string;
-  description: string;
-  price: number | string; // Use string for form input flexibility
-  stock: number | string; // Use string for form input flexibility
-}
-
-// Type for AI Trainer
-export interface TestPromptResponse {
-    responseText: string;
-}
-
 export interface SessionListItem {
   id: string;
   platform: 'whatsapp' | 'messenger';
+}
+
+// --- NUEVA INTERFAZ PARA LOS CAMPOS PERSONALIZADOS DE LA AGENDA ---
+export interface AppointmentField {
+  key: string;        // ej: "phone"
+  label: string;      // ej: "Teléfono de contacto"
+  description: string; // Para la IA: "El número de teléfono del usuario"
+  required: boolean;
+}
+
+// --- PERFIL DE CLIENTE (ACTUALIZADO) ---
+export interface ClientProfile {
+  clientId: string;
+  clientName: string;
+  platform: 'whatsapp' | 'messenger';
+  systemInstruction: string;
+  tools: any[];
+  knowledgeBasePath: string;
+  pageAccessToken: string;
+  geminiModel: string;
+  maxHistoryTurns: number;
+  
+  // Configuración de Google Calendar (Opcional)
+  googleAuth?: {
+    accessToken: string;
+    refreshToken: string;
+    expiryDate: number;
+  };
+  
+  // Ajustes del Calendario (Opcional)
+  calendarSettings?: {
+    calendarId: string;
+    slotDuration: string;
+    businessHoursStart: string;
+    businessHoursEnd: string;
+  };
+
+  // Campos dinámicos para agendar (Nuevo)
+  appointmentFields?: AppointmentField[];
+
+  // Controla si el bot usa botones y elementos visuales o solo texto
+  enableRichUI?: boolean;
+  initialButtons?: string[]; // Lista de textos para los botones de bienvenida
+
+  // --- NUEVA CONFIGURACIÓN DE RECORDATORIOS ---
+  reminderSettings?: {
+    enabled: boolean;        // ¿Están activos?
+    hoursBefore: number;     // ¿Cuántas horas antes avisar? (ej. 24)
+    messageTemplate: string; // Mensaje (ej. "Hola {name}, recuerda tu cita mañana")
+    interactiveReminders?: boolean; // <-- Nuevo interruptor
+  };
+
+  // --- ACTUALIZACIÓN: CRM GRANULAR ---
+  crmSettings?: {
+    spreadsheetId: string;
+    logAppointments?: boolean;  // Guardar cuando se crea la cita
+    logConfirmations?: boolean; // Guardar cuando se confirma
+  };
 }

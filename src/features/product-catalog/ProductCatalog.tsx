@@ -1,249 +1,203 @@
+// File: src/features/product-catalog/ProductCatalog.tsx
+
 import React, { useState, useEffect, useCallback } from 'react';
-import {
-  Box,
-  Button,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-  CircularProgress,
-  IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  TextField,
-  Alert,
-} from '@mui/material/';
+import { 
+    Box, Paper, Typography, Button, CircularProgress, Alert, 
+    Table, TableContainer, TableHead, TableRow, TableCell, TableBody, IconButton,
+    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
+} from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Product, NotificationState } from '../../types/types';
+import { useClientContext } from '../../context/ClientContext';
 import { API_BASE_URL } from '../../constants';
-import Notification from '../../components/Notification';
+import { Product } from '../../types/types';
+import ProductEditorDialog from './ProductEditorDialog';
 
-const emptyProduct: Product = { id: '', name: '', description: '', price: '', stock: '' };
+// Define las props que el componente aceptará
+interface ProductCatalogProps {
+  clientId: string;
+}
 
-const ProductCatalog: React.FC = () => {
+const ProductCatalog: React.FC<ProductCatalogProps> = ({ clientId }) => {
+  useEffect(() => {
+    if (clientId) {
+      fetch(`/api/clients/${clientId}/products`);
+    }
+  }, [clientId]);
+  const { activeClientId } = useClientContext();
   const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notification, setNotification] = useState<NotificationState | null>(null);
-
-  // Dialog states
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [currentProduct, setCurrentProduct] = useState<Product>(emptyProduct);
   
-  // Confirm Dialog state
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [productToEdit, setProductToEdit] = useState<Product | undefined>(undefined);
+
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-
   const fetchProducts = useCallback(async () => {
+    if (!activeClientId) {
+      setProducts([]);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
+    setError(null);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/products`);
-      if (!response.ok) {
-        throw new Error(`Error HTTP: ${response.status}`);
-      }
-      const data: Product[] = await response.json();
-      setProducts(data);
-      setError(null);
+      const response = await fetch(`${API_BASE_URL}/api/clients/${activeClientId}/products`);
+      if (!response.ok) throw new Error('Error al cargar productos.');
+      setProducts(await response.json());
     } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Error desconocido al cargar productos';
-      setError(errorMessage);
-      console.error(errorMessage);
+      setError(e instanceof Error ? e.message : 'Error desconocido');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [activeClientId]);
 
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
   
-  const closeNotification = () => setNotification(null);
-
-  // Dialog handlers
-  const handleAddClick = () => {
-    setIsEditing(false);
-    setCurrentProduct(emptyProduct);
-    setDialogOpen(true);
-  };
-
-  const handleEditClick = (product: Product) => {
-    setIsEditing(true);
-    setCurrentProduct(product);
-    setDialogOpen(true);
+  const handleOpenEditor = (product?: Product) => {
+    setProductToEdit(product);
+    setIsEditorOpen(true);
   };
   
-  const handleDialogClose = () => {
-    setDialogOpen(false);
+  const handleCloseEditor = () => {
+    setIsEditorOpen(false);
+    setProductToEdit(undefined);
   };
-
-  const handleProductChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCurrentProduct(prev => ({...prev, [name]: value}));
-  }
-
-  const handleSaveProduct = async () => {
-    const url = isEditing 
-      ? `${API_BASE_URL}/api/products/${currentProduct.id}`
-      : `${API_BASE_URL}/api/products`;
+  
+  const handleSaveProduct = async (productData: Omit<Product, 'id'>) => {
+    if (!activeClientId) return;
     
+    const isEditing = !!productToEdit;
+    const url = isEditing
+      ? `${API_BASE_URL}/api/clients/${activeClientId}/products/${productToEdit!.id}`
+      : `${API_BASE_URL}/api/clients/${activeClientId}/products`;
     const method = isEditing ? 'PUT' : 'POST';
 
-    const productData = {
-        ...currentProduct,
-        price: Number(currentProduct.price),
-        stock: Number(currentProduct.stock)
-    };
-
     try {
-        const response = await fetch(url, {
-            method,
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(productData)
-        });
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.message || 'Error al guardar el producto');
-        }
-        setNotification({message: result.message, type: 'success'});
-        fetchProducts(); // Refresh list
-    } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : 'Error desconocido';
-        setNotification({message: errorMessage, type: 'error'});
-    } finally {
-        handleDialogClose();
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(productData),
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error al guardar el producto.');
+      }
+      fetchProducts();
+      handleCloseEditor();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido al guardar');
     }
-  }
+  };
 
-  // Delete handlers
+  // --- LÓGICA DE BORRADO CORREGIDA ---
+
+  // 1. Esta función solo abre el diálogo
   const handleDeleteClick = (product: Product) => {
     setProductToDelete(product);
-    setConfirmOpen(true);
-  };
-  
-  const handleConfirmClose = () => {
-    setConfirmOpen(false);
-    setProductToDelete(null);
+    setIsConfirmOpen(true);
   };
 
+  // 2. Esta función solo cierra el diálogo
+  const handleCloseDeleteDialog = () => {
+    setProductToDelete(null);
+    setIsConfirmOpen(false);
+  };
+
+  // 3. Esta función, llamada por el botón del diálogo, hace el trabajo real
   const handleConfirmDelete = async () => {
-    if (!productToDelete) return;
+    if (!activeClientId || !productToDelete) return;
+
     try {
-        const response = await fetch(`${API_BASE_URL}/api/products/${productToDelete.id}`, { method: 'DELETE' });
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.message || 'Error al eliminar el producto');
-        }
-        setNotification({ message: result.message, type: 'success'});
-        fetchProducts(); // Refresh list
-    } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : 'Error desconocido';
-        setNotification({ message: errorMessage, type: 'error'});
+      await fetch(`${API_BASE_URL}/api/clients/${activeClientId}/products/${productToDelete.id}`, { method: 'DELETE' });
+      // Tras el éxito, refrescamos la lista
+      fetchProducts(); 
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error desconocido al eliminar');
     } finally {
-        handleConfirmClose();
+      // Y siempre cerramos el diálogo
+      handleCloseDeleteDialog();
     }
   };
-
+  
+  if (!activeClientId) {
+    return <Paper sx={{p: 3, textAlign: 'center'}}><Typography>Selecciona un cliente para gestionar su catálogo.</Typography></Paper>;
+  }
 
   if (isLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
+    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
   }
 
   return (
     <>
-      {notification && <Notification {...notification} onClose={closeNotification} />}
-
-      <Paper sx={{ p: 2, m: 'auto' }}>
+      <Box>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5" component="h2">
-            Gestor de Productos
-          </Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddClick}>
+          <Typography variant="h5" component="h2">Catálogo del Cliente</Typography>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenEditor()}>
             Añadir Producto
           </Button>
         </Box>
-        
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        
-        <TableContainer>
-          <Table stickyHeader aria-label="tabla de productos">
-            <TableHead>
-              <TableRow>
-                <TableCell>Nombre</TableCell>
-                <TableCell>Descripción</TableCell>
-                <TableCell align="right">Precio</TableCell>
-                <TableCell align="right">Stock</TableCell>
-                <TableCell align="center">Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {products.length > 0 ? products.map((product) => (
-                <TableRow hover key={product.id}>
-                  <TableCell component="th" scope="row">{product.name}</TableCell>
-                  <TableCell sx={{maxWidth: '300px', whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>{product.description}</TableCell>
-                  <TableCell align="right">${Number(product.price).toFixed(2)}</TableCell>
-                  <TableCell align="right">{product.stock}</TableCell>
-                  <TableCell align="center">
-                    <IconButton onClick={() => handleEditClick(product)} aria-label="editar">
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton onClick={() => handleDeleteClick(product)} aria-label="eliminar">
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              )) : (
-                <TableRow>
-                    <TableCell colSpan={5} align="center">
-                        No hay productos en el catálogo.
-                    </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
 
-      {/* Add/Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={handleDialogClose}>
-        <DialogTitle>{isEditing ? 'Editar Producto' : 'Añadir Nuevo Producto'}</DialogTitle>
-        <DialogContent>
-            <TextField autoFocus margin="dense" name="name" label="Nombre del Producto" type="text" fullWidth variant="standard" value={currentProduct.name} onChange={handleProductChange} />
-            <TextField margin="dense" name="description" label="Descripción" type="text" fullWidth multiline rows={3} variant="standard" value={currentProduct.description} onChange={handleProductChange} />
-            <TextField margin="dense" name="price" label="Precio" type="number" fullWidth variant="standard" value={currentProduct.price} onChange={handleProductChange} />
-            <TextField margin="dense" name="stock" label="Stock" type="number" fullWidth variant="standard" value={currentProduct.stock} onChange={handleProductChange} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDialogClose}>Cancelar</Button>
-          <Button onClick={handleSaveProduct}>Guardar</Button>
-        </DialogActions>
-      </Dialog>
+        {error && <Alert severity="error" sx={{mb: 2}}>{error}</Alert>}
+        
+        <TableContainer component={Paper}>
+            <Table>
+                <TableHead>
+                    <TableRow>
+                        <TableCell>Nombre</TableCell>
+                        <TableCell>Descripción</TableCell>
+                        <TableCell align="right">Precio</TableCell>
+                        <TableCell align="right">Stock</TableCell>
+                        <TableCell align="right">Acciones</TableCell>
+                    </TableRow>
+                </TableHead>
+                <TableBody>
+                    {products.map((product) => (
+                    <TableRow key={product.id} hover>
+                        <TableCell>{product.name}</TableCell>
+                        <TableCell>{product.description}</TableCell>
+                        <TableCell align="right">${Number(product.price).toFixed(2)}</TableCell>
+                        <TableCell align="right">{product.stock}</TableCell>
+                        <TableCell align="right">
+                            <IconButton onClick={() => handleOpenEditor(product)} aria-label="editar"><EditIcon /></IconButton>
+                            {/* El botón ahora llama a handleDeleteClick */}
+                            <IconButton onClick={() => handleDeleteClick(product)} aria-label="eliminar" color="error"><DeleteIcon /></IconButton>
+                        </TableCell>
+                    </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </TableContainer>
+      </Box>
       
-      {/* Confirm Delete Dialog */}
-      <Dialog open={confirmOpen} onClose={handleConfirmClose}>
+      {isEditorOpen &&
+        <ProductEditorDialog
+            open={isEditorOpen}
+            onClose={handleCloseEditor}
+            onSave={handleSaveProduct}
+            productToEdit={productToEdit}
+        />
+      }
+      
+      <Dialog open={isConfirmOpen} onClose={handleCloseDeleteDialog}>
         <DialogTitle>Confirmar Eliminación</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            ¿Estás seguro de que quieres eliminar el producto "{productToDelete?.name}"? Esta acción no se puede deshacer.
+            ¿Estás seguro de que quieres eliminar el producto **"{productToDelete?.name}"**?
+            <br/>Esta acción es permanente.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleConfirmClose}>Cancelar</Button>
-          <Button onClick={handleConfirmDelete} color="error">Eliminar</Button>
+          <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
+          {/* El botón de confirmación ahora llama a handleConfirmDelete */}
+          <Button onClick={handleConfirmDelete} color="error" autoFocus>
+            Sí, Eliminar
+          </Button>
         </DialogActions>
       </Dialog>
     </>
