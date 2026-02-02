@@ -7,7 +7,7 @@ import ClientEditor from './ClientEditor';
 import { ClientProfile } from '../../types/types';
 
 // La URL base para las peticiones al backend
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://chatbot-back.fly.dev';
+const API_BASE_URL = (import.meta as any).env.VITE_API_BASE_URL || 'https://chatbot-back.fly.dev';
 
 const ClientManager: React.FC = () => {
   const [clients, setClients] = useState<ClientProfile[]>([]);

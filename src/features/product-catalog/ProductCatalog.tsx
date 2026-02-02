@@ -1,206 +1,259 @@
 // File: src/features/product-catalog/ProductCatalog.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-    Box, Paper, Typography, Button, CircularProgress, Alert, 
-    Table, TableContainer, TableHead, TableRow, TableCell, TableBody, IconButton,
-    Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Alert,
+  Fade,
+  Tooltip
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import { useClientContext } from '../../context/ClientContext';
-import { API_BASE_URL } from '../../constants';
+import EditTwoToneIcon from '@mui/icons-material/EditTwoTone';
+import DeleteTwoToneIcon from '@mui/icons-material/DeleteTwoTone';
+import ShoppingBagIcon from '@mui/icons-material/ShoppingBag';
 import { Product } from '../../types/types';
-import ProductEditorDialog from './ProductEditorDialog';
+import { API_BASE_URL } from '../../constants';
+import { useClientContext } from '../../context/ClientContext';
 
-// Define las props que el componente aceptará
-interface ProductCatalogProps {
-  clientId: string;
-}
+const ProductRow: React.FC<{ product: Product; onEdit: (p: Product) => void; onDelete: (id: string) => void }> = ({ product, onEdit, onDelete }) => (
+  <TableRow
+    sx={{ 
+      '&:hover': { bgcolor: 'action.hover' },
+      transition: '0.2s',
+      '&:last-child td, &:last-child th': { border: 0 } 
+    }}
+  >
+    <TableCell component="th" scope="row" sx={{ fontWeight: 600 }}>
+      {product.name}
+    </TableCell>
+    <TableCell>{product.description}</TableCell>
+    <TableCell sx={{ color: 'success.main', fontWeight: 'bold' }}>
+      ${Number(product.price).toFixed(2)}
+    </TableCell>
+    <TableCell>
+      <Box sx={{ 
+        display: 'inline-block', 
+        px: 1, 
+        py: 0.5, 
+        borderRadius: 1, 
+        bgcolor: 'background.default',
+        border: '1px solid',
+        borderColor: 'divider',
+        fontWeight: 500,
+        fontSize: '0.875rem'
+      }}>
+        {product.stock} un.
+      </Box>
+    </TableCell>
+    <TableCell align="right">
+      <Tooltip title="Editar">
+        <IconButton onClick={() => onEdit(product)} color="primary" size="small" sx={{ mr: 1 }}>
+          <EditTwoToneIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="Eliminar">
+        <IconButton onClick={() => onDelete(product.id)} color="error" size="small">
+          <DeleteTwoToneIcon />
+        </IconButton>
+      </Tooltip>
+    </TableCell>
+  </TableRow>
+);
 
-const ProductCatalog: React.FC<ProductCatalogProps> = ({ clientId }) => {
+const ProductCatalog: React.FC = () => {
+  const { activeClientId: clientId } = useClientContext();
+  
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState<Partial<Product>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchProducts = async () => {
+    if (!clientId) return;
+    try {
+      // CORRECCIÓN: Usamos la ruta anidada /api/clients/... que tienes en server.js
+      const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/products`);
+      if (response.ok) {
+        setProducts(await response.json());
+      } else {
+        console.error("Error fetching products:", response.status);
+      }
+    } catch (error) {
+      console.error("Error cargando productos:", error);
+    }
+  };
+
   useEffect(() => {
     if (clientId) {
-      fetch(`/api/clients/${clientId}/products`);
+        fetchProducts();
+    } else {
+        setProducts([]); 
     }
   }, [clientId]);
-  const { activeClientId } = useClientContext();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  
-  const [isEditorOpen, setIsEditorOpen] = useState(false);
-  const [productToEdit, setProductToEdit] = useState<Product | undefined>(undefined);
 
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-
-  const fetchProducts = useCallback(async () => {
-    if (!activeClientId) {
-      setProducts([]);
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    setError(null);
+  const handleSave = async () => {
+    if (!clientId) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/clients/${activeClientId}/products`);
-      if (!response.ok) throw new Error('Error al cargar productos.');
-      setProducts(await response.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error desconocido');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeClientId]);
-
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
-  
-  const handleOpenEditor = (product?: Product) => {
-    setProductToEdit(product);
-    setIsEditorOpen(true);
-  };
-  
-  const handleCloseEditor = () => {
-    setIsEditorOpen(false);
-    setProductToEdit(undefined);
-  };
-  
-  const handleSaveProduct = async (productData: Omit<Product, 'id'>) => {
-    if (!activeClientId) return;
-    
-    const isEditing = !!productToEdit;
-    const url = isEditing
-      ? `${API_BASE_URL}/api/clients/${activeClientId}/products/${productToEdit!.id}`
-      : `${API_BASE_URL}/api/clients/${activeClientId}/products`;
-    const method = isEditing ? 'PUT' : 'POST';
-
-    try {
+      // CORRECCIÓN: Ajustamos también las rutas de guardado
+      const url = currentProduct.id
+        ? `${API_BASE_URL}/api/clients/${clientId}/products/${currentProduct.id}`
+        : `${API_BASE_URL}/api/clients/${clientId}/products`;
+      
+      const method = currentProduct.id ? 'PUT' : 'POST';
+      
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData),
+        body: JSON.stringify(currentProduct),
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Error al guardar el producto.');
-      }
+
+      if (!response.ok) throw new Error('Error al guardar');
+      
       fetchProducts();
-      handleCloseEditor();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido al guardar');
+      setIsDialogOpen(false);
+      setCurrentProduct({});
+    } catch (e) {
+      setError("No se pudo guardar el producto.");
     }
   };
 
-  // --- LÓGICA DE BORRADO CORREGIDA ---
-
-  // 1. Esta función solo abre el diálogo
-  const handleDeleteClick = (product: Product) => {
-    setProductToDelete(product);
-    setIsConfirmOpen(true);
-  };
-
-  // 2. Esta función solo cierra el diálogo
-  const handleCloseDeleteDialog = () => {
-    setProductToDelete(null);
-    setIsConfirmOpen(false);
-  };
-
-  // 3. Esta función, llamada por el botón del diálogo, hace el trabajo real
-  const handleConfirmDelete = async () => {
-    if (!activeClientId || !productToDelete) return;
-
+  const handleDelete = async (id: string) => {
+    if (!clientId || !window.confirm("¿Estás seguro?")) return;
     try {
-      await fetch(`${API_BASE_URL}/api/clients/${activeClientId}/products/${productToDelete.id}`, { method: 'DELETE' });
-      // Tras el éxito, refrescamos la lista
-      fetchProducts(); 
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error desconocido al eliminar');
-    } finally {
-      // Y siempre cerramos el diálogo
-      handleCloseDeleteDialog();
+      // CORRECCIÓN: Ajustamos la ruta de borrado
+      await fetch(`${API_BASE_URL}/api/clients/${clientId}/products/${id}`, { method: 'DELETE' });
+      fetchProducts();
+    } catch (e) {
+      setError("Error al eliminar.");
     }
   };
-  
-  if (!activeClientId) {
-    return <Paper sx={{p: 3, textAlign: 'center'}}><Typography>Selecciona un cliente para gestionar su catálogo.</Typography></Paper>;
-  }
 
-  if (isLoading) {
-    return <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>;
+  if (!clientId) {
+    return (
+      <Box sx={{ textAlign: 'center', mt: 8, opacity: 0.7 }}>
+        <ShoppingBagIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+        <Typography variant="h6" color="text.secondary">
+          Selecciona un cliente arriba para gestionar su catálogo.
+        </Typography>
+      </Box>
+    );
   }
 
   return (
-    <>
+    <Fade in={true}>
       <Box>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5" component="h2">Catálogo del Cliente</Typography>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenEditor()}>
-            Añadir Producto
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box>
+            <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'text.primary' }}>
+              Catálogo de Productos
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Gestiona el inventario que el bot puede ofrecer.
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => { setCurrentProduct({}); setIsDialogOpen(true); }}
+            sx={{ borderRadius: 2, px: 3, py: 1, boxShadow: 3 }}
+          >
+            Nuevo Producto
           </Button>
         </Box>
 
-        {error && <Alert severity="error" sx={{mb: 2}}>{error}</Alert>}
-        
-        <TableContainer component={Paper}>
-            <Table>
-                <TableHead>
-                    <TableRow>
-                        <TableCell>Nombre</TableCell>
-                        <TableCell>Descripción</TableCell>
-                        <TableCell align="right">Precio</TableCell>
-                        <TableCell align="right">Stock</TableCell>
-                        <TableCell align="right">Acciones</TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    {products.map((product) => (
-                    <TableRow key={product.id} hover>
-                        <TableCell>{product.name}</TableCell>
-                        <TableCell>{product.description}</TableCell>
-                        <TableCell align="right">${Number(product.price).toFixed(2)}</TableCell>
-                        <TableCell align="right">{product.stock}</TableCell>
-                        <TableCell align="right">
-                            <IconButton onClick={() => handleOpenEditor(product)} aria-label="editar"><EditIcon /></IconButton>
-                            {/* El botón ahora llama a handleDeleteClick */}
-                            <IconButton onClick={() => handleDeleteClick(product)} aria-label="eliminar" color="error"><DeleteIcon /></IconButton>
-                        </TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+        {error && <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 3 }}>{error}</Alert>}
+
+        <TableContainer component={Paper} sx={{ borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.05)', overflow: 'hidden' }}>
+          <Table>
+            <TableHead sx={{ bgcolor: (theme) => theme.palette.mode === 'light' ? '#f8fafc' : '#1e293b' }}>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold' }}>Nombre</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Descripción</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Precio</TableCell>
+                <TableCell sx={{ fontWeight: 'bold' }}>Stock</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Acciones</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {products.length > 0 ? (
+                products.map((product) => (
+                  <ProductRow 
+                    key={product.id} 
+                    product={product} 
+                    onEdit={(p) => { setCurrentProduct(p); setIsDialogOpen(true); }} 
+                    onDelete={handleDelete} 
+                  />
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 6 }}>
+                    <Typography color="text.secondary">No hay productos en el catálogo de este cliente.</Typography>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </TableContainer>
+
+        <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>{currentProduct.id ? 'Editar Producto' : 'Nuevo Producto'}</DialogTitle>
+          <DialogContent>
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <TextField
+                label="Nombre del Producto"
+                fullWidth
+                value={currentProduct.name || ''}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, name: e.target.value })}
+              />
+              <TextField
+                label="Descripción"
+                fullWidth
+                multiline
+                rows={3}
+                value={currentProduct.description || ''}
+                onChange={(e) => setCurrentProduct({ ...currentProduct, description: e.target.value })}
+              />
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <TextField
+                  label="Precio"
+                  type="number"
+                  fullWidth
+                  InputProps={{ startAdornment: <Typography sx={{ mr: 1 }}>$</Typography> }}
+                  value={currentProduct.price || ''}
+                  onChange={(e) => setCurrentProduct({ ...currentProduct, price: Number(e.target.value) })}
+                />
+                <TextField
+                  label="Stock"
+                  type="number"
+                  fullWidth
+                  value={currentProduct.stock || ''}
+                  onChange={(e) => setCurrentProduct({ ...currentProduct, stock: Number(e.target.value) })}
+                />
+              </Box>
+            </Box>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} variant="contained">Guardar</Button>
+          </DialogActions>
+        </Dialog>
       </Box>
-      
-      {isEditorOpen &&
-        <ProductEditorDialog
-            open={isEditorOpen}
-            onClose={handleCloseEditor}
-            onSave={handleSaveProduct}
-            productToEdit={productToEdit}
-        />
-      }
-      
-      <Dialog open={isConfirmOpen} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Confirmar Eliminación</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            ¿Estás seguro de que quieres eliminar el producto **"{productToDelete?.name}"**?
-            <br/>Esta acción es permanente.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDeleteDialog}>Cancelar</Button>
-          {/* El botón de confirmación ahora llama a handleConfirmDelete */}
-          <Button onClick={handleConfirmDelete} color="error" autoFocus>
-            Sí, Eliminar
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </>
+    </Fade>
   );
 };
 

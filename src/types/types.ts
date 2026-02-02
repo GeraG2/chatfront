@@ -55,6 +55,13 @@ export interface AppointmentField {
   required: boolean;
 }
 
+export interface ServiceItem {
+    title: string;
+    subtitle: string;
+    image_url: string;
+    url: string;
+}
+
 // --- PERFIL DE CLIENTE (ACTUALIZADO) ---
 export interface ClientProfile {
   clientId: string;
@@ -66,6 +73,10 @@ export interface ClientProfile {
   pageAccessToken: string;
   geminiModel: string;
   maxHistoryTurns: number;
+  // --- CAMPOS ESPECÍFICOS DE WHATSAPP ---
+  whatsappPhoneNumberId?: string;
+  whatsappTokenSecretName?: string; // Nombre de la variable de entorno para el token
+  // --------------------------------------
   
   // Configuración de Google Calendar (Opcional)
   googleAuth?: {
@@ -88,6 +99,9 @@ export interface ClientProfile {
   // Controla si el bot usa botones y elementos visuales o solo texto
   enableRichUI?: boolean;
   initialButtons?: string[]; // Lista de textos para los botones de bienvenida
+
+  // Nuevo campo de catálogo
+  services?: ServiceItem[]; // <-- Nuevo campo de catálogo
 
   // --- NUEVA CONFIGURACIÓN DE RECORDATORIOS ---
   reminderSettings?: {
