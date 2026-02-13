@@ -33,16 +33,26 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ImageIcon from '@mui/icons-material/Image';
 import LinkIcon from '@mui/icons-material/Link';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import CodeIcon from '@mui/icons-material/Code';
+import BuildIcon from '@mui/icons-material/Build'; // Icono para Habilidades
 
+// TUS IMPORTACIONES ORIGINALES
 import { API_BASE_URL } from '../../constants';
 import { ClientProfile } from '../../types/types';
 
-// Definición local de las interfaces
+// Interfaces Auxiliares
 interface ServiceItem {
     title: string;
     subtitle: string;
     image_url: string;
     url: string;
+}
+
+// Estructura para los campos personalizados de la herramienta de Ventas
+interface OrderField {
+    key: string;       // ej: "pieza"
+    description: string; // ej: "Nombre de la refacción"
 }
 
 interface ClientEditorProps {
@@ -61,7 +71,7 @@ const emptyClient: Partial<ClientProfile> = {
     systemInstruction: '',
     maxHistoryTurns: 10,
     knowledgeBasePath: '',
-    tools: [],
+    tools: [], // Se generará automáticamente
     enableRichUI: false,
     initialButtons: [],
     services: [], 
@@ -79,11 +89,24 @@ const emptyClient: Partial<ClientProfile> = {
 };
 
 const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clientToEdit }) => {
-    const theme = useTheme(); // Hook para acceder a los colores del tema actual
+    const theme = useTheme();
     const [formData, setFormData] = useState<Partial<ClientProfile>>(emptyClient);
     
-    // Estados locales
+    // Estados UI
     const [buttonsInput, setButtonsInput] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // --- ESTADOS DEL CONSTRUCTOR DE HERRAMIENTAS (Visual) ---
+    const [toolSchedule, setToolSchedule] = useState(false); // Herramienta de Agenda
+    const [toolSearch, setToolSearch] = useState(true);      // Herramienta de Búsqueda (Default ON)
+    const [toolSales, setToolSales] = useState(false);       // Herramienta de Pedidos/CRM
+    const [salesFields, setSalesFields] = useState<OrderField[]>([
+        { key: 'pieza', description: 'Nombre del producto o servicio solicitado' }
+    ]);
+    const [toolsJsonPreview, setToolsJsonPreview] = useState(''); // Solo para visualizar/debug
+
+    // Estados Recordatorios/CRM
     const [reminderEnabled, setReminderEnabled] = useState(false);
     const [reminderHours, setReminderHours] = useState(24);
     const [reminderMessage, setReminderMessage] = useState('');
@@ -92,11 +115,9 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
     const [logAppointments, setLogAppointments] = useState(false);
     const [logConfirmations, setLogConfirmations] = useState(false);
     
-    const [isSaving, setIsSaving] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    
     const isEditing = !!clientToEdit;
 
+    // --- CARGA INICIAL ---
     useEffect(() => {
         if (open) {
             setError(null);
@@ -104,10 +125,11 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                 setFormData({
                     ...clientToEdit,
                     enableRichUI: clientToEdit.enableRichUI || false,
-                    services: clientToEdit.services || []
+                    services: clientToEdit.services || [],
                 });
                 setButtonsInput(clientToEdit.initialButtons?.join(', ') || '');
                 
+                // Configuración CRM/Recordatorios
                 const remSettings = clientToEdit.reminderSettings || emptyClient.reminderSettings!;
                 setReminderEnabled(remSettings.enabled);
                 setReminderHours(remSettings.hoursBefore);
@@ -119,9 +141,45 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                 setLogAppointments(crmSettings.logAppointments || false);
                 setLogConfirmations(crmSettings.logConfirmations || false);
 
+                // --- INGENIERÍA INVERSA: DETECTAR HERRAMIENTAS ACTIVAS ---
+                // Analizamos el JSON existente para prender los switches correctos
+                const existingTools = clientToEdit.tools?.[0]?.functionDeclarations || [];
+                
+                setToolSchedule(existingTools.some((t: any) => t.name === 'scheduleAppointment'));
+                setToolSearch(existingTools.some((t: any) => t.name === 'searchKnowledgeBase'));
+                
+                const salesTool = existingTools.find((t: any) => t.name === 'registerOrder');
+                if (salesTool) {
+                    setToolSales(true);
+                    // Extraer campos personalizados del JSON
+                    const props = salesTool.parameters?.properties || {};
+                    const extractedFields: OrderField[] = [];
+                    // Filtramos los campos estándar para dejar solo los personalizados
+                    const standard = ['name', 'phone', 'tipo_movimiento', 'date', 'time'];
+                    Object.keys(props).forEach(key => {
+                        if (!standard.includes(key)) {
+                            extractedFields.push({ key, description: props[key].description });
+                        }
+                    });
+                    if (extractedFields.length > 0) setSalesFields(extractedFields);
+                } else {
+                    setToolSales(false);
+                    setSalesFields([{ key: 'pieza', description: 'Nombre del producto o servicio' }]);
+                }
+
+                // Generar preview inicial
+                setToolsJsonPreview(JSON.stringify(clientToEdit.tools || [], null, 2));
+
             } else {
+                // Reset para nuevo cliente
                 setFormData(emptyClient);
                 setButtonsInput('');
+                setToolSchedule(false);
+                setToolSearch(true);
+                setToolSales(false);
+                setSalesFields([{ key: 'pieza', description: 'Nombre del producto o servicio' }]);
+                setToolsJsonPreview('[]');
+                
                 setReminderEnabled(false);
                 setReminderHours(24);
                 setReminderMessage(emptyClient.reminderSettings!.messageTemplate);
@@ -141,6 +199,119 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
         }));
     };
 
+    // --- GESTIÓN DE CAMPOS DE VENTA (VISUAL) ---
+    const addSalesField = () => {
+        setSalesFields([...salesFields, { key: '', description: '' }]);
+    };
+    const removeSalesField = (index: number) => {
+        const updated = salesFields.filter((_, i) => i !== index);
+        setSalesFields(updated);
+    };
+    const updateSalesField = (index: number, field: keyof OrderField, value: string) => {
+        const updated = [...salesFields];
+        updated[index][field] = value;
+        setSalesFields(updated);
+    };
+
+    // --- FABRICANTE DE JSON (AUTO-BUILDER) ---
+    const buildToolsJSON = () => {
+        const functions = [];
+
+        // 1. Herramienta de Búsqueda (Base de Conocimiento)
+        if (toolSearch) {
+            functions.push({
+                name: "searchKnowledgeBase",
+                description: "Busca precios, existencias o información del negocio.",
+                parameters: {
+                    type: "object",
+                    properties: { itemName: { type: "string", description: "Término a buscar." } }
+                }
+            });
+        }
+
+        // 2. Herramienta de Citas (Calendar)
+        if (toolSchedule) {
+            functions.push({
+                name: "scheduleAppointment",
+                description: "Agenda una cita en el calendario. Requiere fecha y hora.",
+                parameters: {
+                    type: "object",
+                    properties: {
+                        date: { type: "string", description: "Fecha y hora (ISO 8601)." },
+                        name: { type: "string", description: "Nombre del cliente." },
+                        phone: { type: "string", description: "Teléfono." }
+                    },
+                    required: ["date", "name"]
+                }
+            });
+            // Agregamos el helper de disponibilidad si hay agenda
+            functions.push({
+                name: "checkAvailability",
+                description: "Consulta horarios disponibles.",
+                parameters: {
+                    type: "object",
+                    properties: { date: { type: "string", description: "Fecha a consultar." } }
+                }
+            });
+        }
+
+        // 3. Herramienta de Ventas/Pedidos (CRM Dinámico)
+        if (toolSales) {
+            const properties: any = {
+                name: { type: "string", description: "Nombre del cliente." },
+                phone: { type: "string", description: "Teléfono." },
+                tipo_movimiento: { type: "string", description: "Tipo de operación (Venta/Pedido)." }
+            };
+            const required = ["name", "phone", "tipo_movimiento"];
+
+            // Inyectamos los campos visuales que creó el usuario
+            salesFields.forEach(field => {
+                if (field.key && field.description) {
+                    properties[field.key] = { type: "string", description: field.description };
+                    required.push(field.key); // Los hacemos obligatorios por defecto
+                }
+            });
+
+            functions.push({
+                name: "registerOrder",
+                description: "Registra un pedido o venta en el CRM. Pide todos los datos requeridos.",
+                parameters: {
+                    type: "object",
+                    properties: properties,
+                    required: required
+                }
+            });
+        }
+
+        // 4. Herramienta de Confirmación (Siempre útil si hay CRM)
+        if (toolSchedule || toolSales) {
+             functions.push({
+                 name: "confirmAppointment",
+                 description: "Usa esta herramienta cuando el usuario confirme explícitamente su asistencia.",
+                 parameters: {
+                     type: "object",
+                     properties: {
+                         name: { type: "string", description: "Nombre del cliente." }
+                     },
+                     required: ["name"]
+                 }
+            });
+        }
+
+        // Si no hay herramientas, devolvemos array vacío, si hay, envolvemos en estructura de Gemini
+        return functions.length > 0 ? [{ functionDeclarations: functions }] : [];
+    };
+
+    // Actualizar preview del JSON cuando cambian los switches (Efecto visual solamente)
+    useEffect(() => {
+        if (open) {
+            const json = buildToolsJSON();
+            setToolsJsonPreview(JSON.stringify(json, null, 2));
+        }
+    }, [toolSchedule, toolSearch, toolSales, salesFields, open]);
+
+
+    // --- LÓGICA DEL CATÁLOGO VISUAL (RESTAURADA) ---
     const addService = () => {
         setFormData(prev => ({
             ...prev,
@@ -170,9 +341,14 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
             .map(btn => btn.trim())
             .filter(btn => btn.length > 0);
 
+        // GENERACIÓN AUTOMÁTICA DEL JSON DE HERRAMIENTAS
+        // Aquí ocurre la magia: convertimos los switches en código
+        const autoGeneratedTools = buildToolsJSON();
+
         const payload = {
             ...formData,
             initialButtons: processedButtons,
+            tools: autoGeneratedTools, // <--- Se inyecta el JSON generado
             reminderSettings: {
                 enabled: reminderEnabled,
                 hoursBefore: Number(reminderHours),
@@ -253,6 +429,19 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
         }
     };
 
+    const handleConnectCalendar = () => {
+       if (!formData.clientId) {
+           setError("⚠️ Primero debes guardar el cliente o asignar un ID antes de conectar.");
+           return;
+       }
+       const authUrl = `${API_BASE_URL}/api/google/auth/start/${formData.clientId}`;
+       const width = 500;
+       const height = 600;
+       const left = window.screen.width / 2 - width / 2;
+       const top = window.screen.height / 2 - height / 2;
+       window.open(authUrl, 'Conectar Google', `width=${width},height=${height},top=${top},left=${left}`);
+    };
+
     return (
         <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
             <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -264,6 +453,7 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                     {error && <Alert severity="error">{error}</Alert>}
                     
+                    {/* Identidad */}
                     <Box>
                         <Typography variant="subtitle2" color="primary" sx={{ mb: 1, fontWeight: 'bold' }}>IDENTIDAD DEL CANAL</Typography>
                         <Grid container spacing={2}>
@@ -308,17 +498,12 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                         </Grid>
                     </Box>
 
-                    {/* Sección 2: Credenciales (Fondo Adaptable) */}
-                    <Box sx={{ 
-                        p: 2, 
-                        bgcolor: theme.palette.action.hover, // Se adapta a claro/oscuro
-                        borderRadius: 1, 
-                        border: '1px solid', 
-                        borderColor: 'divider' 
-                    }}>
+                    {/* Credenciales */}
+                    <Box sx={{ p: 2, bgcolor: theme.palette.action.hover, borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
                         {renderPlatformFields()}
                     </Box>
 
+                    {/* Conocimiento */}
                     <Box>
                         <TextField
                             label="Base de Conocimiento (Archivo JSON)"
@@ -334,14 +519,75 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                             name="systemInstruction"
                             fullWidth
                             multiline
-                            rows={4}
+                            rows={6}
                             value={formData.systemInstruction || ''}
                             onChange={handleChange}
+                            helperText="Define cómo debe comportarse el bot."
                         />
                     </Box>
 
-                    {/* --- SECCIÓN: CATÁLOGO DE SERVICIOS (TARJETAS) --- */}
-                    <Box sx={{ mt: 1 }}>
+                    {/* --- CONSTRUCTOR DE HERRAMIENTAS (VISUAL) --- */}
+                    <Box sx={{ p: 2, border: '1px solid', borderColor: 'primary.main', borderRadius: 2, bgcolor: alpha(theme.palette.primary.main, 0.05) }}>
+                        <Typography variant="subtitle2" color="primary" sx={{ mb: 2, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <BuildIcon fontSize="small" /> HABILIDADES DEL BOT
+                        </Typography>
+
+                        {/* Habilidad: Búsqueda */}
+                        <FormControlLabel 
+                            control={<Switch checked={toolSearch} onChange={(e) => setToolSearch(e.target.checked)} />} 
+                            label={<Box><Typography variant="body2" fontWeight="bold">Responder dudas del negocio</Typography><Typography variant="caption" color="text.secondary">Usa el archivo JSON para buscar precios e info.</Typography></Box>} 
+                            sx={{ mb: 2 }}
+                        />
+                        <Divider sx={{ my: 1 }} />
+
+                        {/* Habilidad: Agenda */}
+                        <FormControlLabel 
+                            control={<Switch checked={toolSchedule} onChange={(e) => setToolSchedule(e.target.checked)} />} 
+                            label={<Box><Typography variant="body2" fontWeight="bold">Agendar Citas (Google Calendar)</Typography><Typography variant="caption" color="text.secondary">Permite consultar horarios y crear eventos.</Typography></Box>} 
+                            sx={{ mb: 2 }}
+                        />
+                        <Divider sx={{ my: 1 }} />
+
+                        {/* Habilidad: Ventas/Pedidos */}
+                        <FormControlLabel 
+                            control={<Switch checked={toolSales} onChange={(e) => setToolSales(e.target.checked)} color="warning" />} 
+                            label={<Box><Typography variant="body2" fontWeight="bold">Registrar Ventas/Pedidos (CRM)</Typography><Typography variant="caption" color="text.secondary">Guarda pedidos en Google Sheets.</Typography></Box>} 
+                        />
+
+                        {/* Configuración de Campos de Venta (Solo si está activo) */}
+                        {toolSales && (
+                            <Box sx={{ mt: 2, ml: 4, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px dashed #ccc' }}>
+                                <Typography variant="caption" fontWeight="bold" sx={{ mb: 1, display: 'block', color: 'warning.main' }}>¿Qué datos EXTRA debe pedir el bot?</Typography>
+                                {salesFields.map((field, index) => (
+                                    <Box key={index} sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                                        <TextField size="small" label="Variable (ej. pieza)" value={field.key} onChange={(e) => updateSalesField(index, 'key', e.target.value)} sx={{ width: '30%' }} />
+                                        <TextField size="small" label="Instrucción (ej. Qué pieza busca)" value={field.description} onChange={(e) => updateSalesField(index, 'description', e.target.value)} fullWidth />
+                                        <IconButton size="small" color="error" onClick={() => removeSalesField(index)}><DeleteIcon /></IconButton>
+                                    </Box>
+                                ))}
+                                <Button size="small" startIcon={<AddIcon />} onClick={addSalesField} color="warning">Añadir Campo</Button>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>* Nombre, Teléfono y Tipo se piden automáticamente.</Typography>
+                            </Box>
+                        )}
+                        
+                        {/* Preview del JSON Generado (Solo lectura) */}
+                        <Box sx={{ mt: 2 }}>
+                             <Typography variant="caption" sx={{ display: 'block', mb: 0.5, color: 'text.disabled', fontFamily: 'monospace' }}>JSON Generado (Automático):</Typography>
+                             <TextField
+                                fullWidth
+                                multiline
+                                rows={2}
+                                size="small"
+                                value={toolsJsonPreview}
+                                disabled
+                                sx={{ bgcolor: alpha(theme.palette.action.disabled, 0.05) }}
+                                InputProps={{ style: { fontSize: '0.7rem', fontFamily: 'monospace' } }}
+                             />
+                        </Box>
+                    </Box>
+
+                    {/* Catálogo Visual */}
+                    <Box sx={{ mt: 2 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                             <Typography variant="subtitle2" sx={{ color: theme.palette.secondary.main, fontWeight: 'bold' }}>CATÁLOGO VISUAL (TARJETAS)</Typography>
                             <Button 
@@ -414,7 +660,7 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                                                     label="URL de Acción (Opcional)"
                                                     fullWidth
                                                     size="small"
-                                                    placeholder="https://tupagina.com"
+                                                    placeholder="[https://tupagina.com](https://tupagina.com)"
                                                     value={service.url}
                                                     onChange={(e) => updateService(index, 'url', e.target.value)}
                                                     InputProps={{ startAdornment: <LinkIcon sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }} /> }}
@@ -427,9 +673,9 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                         )}
                     </Box>
 
-                    {/* Sección 4: CRM e Inteligencia (Dark Mode Friendly) */}
+                    {/* CRM & Recordatorios */}
                     <Box sx={{ mt: 1 }}>
-                        <Typography variant="subtitle2" color="success.main" sx={{ mb: 1, fontWeight: 'bold' }}>INTEGRACIÓN CRM & RECORDATORIOS</Typography>
+                        <Typography variant="subtitle2" color="success.main" sx={{ mb: 1, fontWeight: 'bold' }}>OPCIONES DE CRM & AGENDA</Typography>
                         <Divider sx={{ mb: 2 }} />
                         <Grid container spacing={2}>
                             <Grid item xs={12}>
@@ -439,6 +685,20 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                                     value={spreadsheetId} 
                                     onChange={(e) => setSpreadsheetId(e.target.value)} 
                                     helperText="ID de la hoja de cálculo para guardar citas"
+                                    InputProps={{
+                                        endAdornment: (
+                                            <InputAdornment position="end">
+                                                <IconButton 
+                                                    onClick={handleConnectCalendar} 
+                                                    edge="end" 
+                                                    title="Conectar cuenta de Google"
+                                                    color={spreadsheetId ? "success" : "primary"}
+                                                >
+                                                    <CalendarTodayIcon /> 
+                                                </IconButton>
+                                            </InputAdornment>
+                                        )
+                                    }}
                                 />
                             </Grid>
                             
@@ -463,7 +723,6 @@ const ClientEditor: React.FC<ClientEditorProps> = ({ open, onClose, onSave, clie
                                     border: '1px solid',
                                     borderColor: 'divider', 
                                     borderRadius: 1, 
-                                    // Fondo dinámico: verde claro suave en modo claro, verde oscuro transparente en modo oscuro
                                     bgcolor: reminderEnabled ? alpha(theme.palette.success.main, 0.08) : 'transparent' 
                                 }}>
                                     <FormControlLabel
